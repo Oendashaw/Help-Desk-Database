@@ -1,0 +1,18 @@
+# Local credentials and connection settings
+.env
+.env.*
+.pgpass
+pgpass.conf
+pg_service.conf
+
+# Generated database backups
+/backups/
+*.dump
+*.backup
+
+# Python files generated locally
+.venv/
+__pycache__/
+
+# Local course proposal
+/CSCE4355_Project_Proposal.docx
