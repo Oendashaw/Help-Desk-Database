@@ -1,0 +1,111 @@
+Sample data verification on PostgreSQL 17
+Run at 2026-11-11T19:25:45.4293565-06:00
+Python version: Python 3.12.10
+PostgreSQL version: psql (PostgreSQL) 17.11
+Generator command: python scripts/generate_data.py
+Generated SQL SHA256: 9874958EFC3DD80E1D22943BEB429DBEE75BD79B6EB9293A854C09175298F8D3
+psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 60746 -U schema_test -d helpdesk_test -f sql/01_schema.sql
+BEGIN
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+COMMIT
+Exit code: 0 (expected 0)
+psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 60746 -U schema_test -d helpdesk_invalid_test -f sql/01_schema.sql
+BEGIN
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+COMMIT
+Exit code: 0 (expected 0)
+psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 60746 -U schema_test -d helpdesk_test -f tests/schema_smoke.sql
+BEGIN
+DO
+ROLLBACK
+psql:tests/schema_smoke.sql:102: NOTICE:  Schema checks passed
+Exit code: 0 (expected 0)
+psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 60746 -U schema_test -d helpdesk_test -f sample_data/helpdesk_data.sql
+BEGIN
+LOCK TABLE
+DO
+COPY 200
+COPY 1000
+COPY 50000
+COPY 100272
+ setval
+--------
+    200
+(1 row)
+
+ANALYZE
+ setval
+--------
+   1000
+(1 row)
+
+ANALYZE
+ setval
+--------
+  50000
+(1 row)
+
+ANALYZE
+ setval
+--------
+ 100272
+(1 row)
+
+ANALYZE
+COMMIT
+Exit code: 0 (expected 0)
+psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 60746 -U schema_test -d helpdesk_test -f tests/data_smoke.sql
+DO
+psql:tests/data_smoke.sql:41: NOTICE:  Generated data checks passed
+   table_name   | row_count
+----------------+-----------
+ staff          |       200
+ assets         |      1000
+ tickets        |     50000
+ ticket_updates |    100272
+(4 rows)
+
+Exit code: 0 (expected 0)
+psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 60746 -U schema_test -d helpdesk_test -f tests/schema_smoke.sql
+BEGIN
+DO
+psql:tests/schema_smoke.sql:102: NOTICE:  Schema checks passed
+ROLLBACK
+Exit code: 0 (expected 0)
+psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 60746 -U schema_test -d helpdesk_test -f sample_data/helpdesk_data.sql
+BEGIN
+LOCK TABLE
+psql:sample_data/helpdesk_data.sql:14: ERROR:  Sample data requires all four tables to be empty
+CONTEXT:  PL/pgSQL function inline_code_block line 7 at RAISE
+Exit code: 3 (expected 3)
+Before/after fingerprint SQL:
+SELECT 'staff', count(*), md5(string_agg(s::text, E'\n' ORDER BY staff_id)) FROM public.staff AS s
+UNION ALL SELECT 'assets', count(*), md5(string_agg(a::text, E'\n' ORDER BY asset_id)) FROM public.assets AS a
+UNION ALL SELECT 'tickets', count(*), md5(string_agg(t::text, E'\n' ORDER BY ticket_id)) FROM public.tickets AS t
+UNION ALL SELECT 'ticket_updates', count(*), md5(string_agg(u::text, E'\n' ORDER BY update_id)) FROM public.ticket_updates AS u;
+Fingerprints unchanged after rejected repeat import:
+staff|200|8b95123f649988699b7812b7985d45b9
+assets|1000|acaf9291f9b9331f207c6bf949e97041
+tickets|50000|2fd4ddd2ddc6f6525a386516c13126ef
+ticket_updates|100272|c7f2d54424af3b910d6a16ae65696349
+Invalid-row fixture changes the first update author to nonexistent staff ID 0.
+psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 60746 -U schema_test -d helpdesk_invalid_test -f C:\Users\olien\AppData\Local\Temp\helpdesk-data-cb048b5afea446698cab816ee4381259\invalid_data.sql
+BEGIN
+LOCK TABLE
+DO
+COPY 200
+COPY 1000
+COPY 50000
+psql:C:/Users/olien/AppData/Local/Temp/helpdesk-data-cb048b5afea446698cab816ee4381259/invalid_data.sql:151499: ERROR:  insert or update on table "ticket_updates" violates foreign key constraint "ticket_updates_author_id_fkey"
+DETAIL:  Key (author_id)=(0) is not present in table "staff".
+Exit code: 3 (expected 3)
+Row-count SQL: SELECT (SELECT count(*) FROM public.staff), (SELECT count(*) FROM public.assets), (SELECT count(*) FROM public.tickets), (SELECT count(*) FROM public.ticket_updates);
+After failed import: 0|0|0|0
+All database checks passed.
+Temporary PostgreSQL instance stopped.

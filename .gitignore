@@ -10,6 +10,9 @@ pg_service.conf
 *.dump
 *.backup
 
+# Reproducible generated sample data
+/sample_data/
+
 # Python files generated locally
 .venv/
 __pycache__/
