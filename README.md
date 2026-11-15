@@ -74,4 +74,166 @@ These checks verify repeatable output and preservation of existing output files.
 - `tests/test_generate_data.py` checks generator repeatability and file handling.
 - `results/data_generation.txt` records disposable PostgreSQL import and rollback checks.
 
-Database roles, performance comparisons, monitoring, and backup and restore will be added as those modules are implemented.
+Performance, indexing, and monitoring scripts are described below. Database roles and backup and restore remain separate team modules.
+
+
+## Performance, indexing, and monitoring
+
+The new contribution preserves the original schema, data generator, and existing
+checks. It adds three reproducible workloads, targeted indexes, a Python benchmark
+using only the standard library plus `psql`, and read-only database monitoring.
+See [the implementation guide](docs/performance_monitoring.md) for design choices,
+measurement limits, monitoring interpretation, and the pgAdmin acceptance checklist.
+
+### Prepare a performance database
+
+Use a disposable database named `helpdesk_perf`. Commands below assume PostgreSQL 17's
+`bin` directory is on PATH and run from the repository root. On Windows, add
+`C:\Program Files\PostgreSQL\17\bin` to PATH for this terminal or use the full paths
+shown above. On macOS/Linux use `python3` if `python` is unavailable. Replace
+`postgres` with your local database administrator/owner login.
+
+```sh
+createdb -h localhost -U postgres -W helpdesk_perf
+psql -X -v ON_ERROR_STOP=1 -h localhost -U postgres -W -d helpdesk_perf -f sql/01_schema.sql
+```
+
+Generate the standard sample file using the earlier instructions if it does not exist;
+the generator deliberately refuses to overwrite it. Then load and verify:
+
+```sh
+psql -X -v ON_ERROR_STOP=1 -h localhost -U postgres -W -d helpdesk_perf -f sample_data/helpdesk_data.sql
+psql -X -v ON_ERROR_STOP=1 -h localhost -U postgres -W -d helpdesk_perf -f tests/data_smoke.sql
+```
+
+### Benchmark before installing indexes
+
+For noninteractive Python runs, configure PostgreSQL's password file (`.pgpass` on
+Unix, `%APPDATA%\postgresql\pgpass.conf` on Windows) or `PGPASSFILE`. Keep credentials
+outside the repository and do not place passwords in command-line arguments.
+The benchmark uses `psql -w`, so it fails instead of hanging at a password prompt.
+
+```sh
+python scripts/benchmark.py --host localhost --username postgres --dbname helpdesk_perf --runs 5 --output results/performance_run_01.json
+```
+
+If necessary, specify `--psql` with the full executable path. `--port` is also supported;
+standard PostgreSQL connection environment variables supply omitted connection options.
+
+The script compares ticket conversation, reporter history, and active agent queue
+queries from `sql/performance_queries.sql`. It creates candidate indexes in one
+transaction, checks equal results, collects plans and median timings, then rolls back
+the indexes. It creates a JSON report and a Markdown sibling with the comparison and
+index sizes. It refuses existing output files and any baseline containing
+non-constraint indexes; use another freshly loaded disposable database for later
+runs. It never drops existing indexes. SHARE locks block concurrent writers during
+the comparison; run this demonstration on the disposable database only.
+
+No measured speedups are supplied with this implementation: live SQL validation was
+blocked by this workspace's shared-memory restrictions. Python checks and the setup
+failure are recorded in `results/validation.txt` and `results/database_setup.txt`.
+
+### Install and verify indexes
+
+After saving the baseline comparison:
+
+```sh
+psql -X -v ON_ERROR_STOP=1 -h localhost -U postgres -W -d helpdesk_perf -f sql/02_indexes.sql
+psql -X -v ON_ERROR_STOP=1 -h localhost -U postgres -W -d helpdesk_perf -f tests/index_smoke.sql
+psql -X -v ON_ERROR_STOP=1 -h localhost -U postgres -W -d helpdesk_perf -f tests/schema_smoke.sql
+```
+
+The index installation is transactional and intended to run once. A repeated run
+fails without replacing an existing index. This avoids silently accepting an incorrect
+same-name definition. The three indexes target ticket updates by ticket, reporter
+history, and active tickets by assigned agent. Extra indexes consume storage and add
+write maintenance, so further indexes should follow workload evidence.
+
+### Monitor the database
+
+```sh
+psql -X -v ON_ERROR_STOP=1 -h localhost -U postgres -W -d helpdesk_perf -f tests/monitoring_smoke.sql
+psql -X -v ON_ERROR_STOP=1 -h localhost -U postgres -W -d helpdesk_perf -f sql/monitoring.sql -o results/monitoring_snapshot_01.txt
+```
+
+Use a new snapshot filename for each capture; psql's `-o` replaces an existing file.
+The monitoring script covers sessions, long transactions, blocking, locks, table/index
+statistics and sizes, maintenance timestamps, and active-ticket backlog. It is plain
+SQL and also works in pgAdmin Query Tool. Run in autocommit mode; compare timestamped
+snapshots and counter deltas. Coordinate `pg_read_all_stats` membership for a dedicated
+monitoring login with the teammate responsible for roles.
+
+For the controlled blocking exercise, follow the separate session instructions in
+`sql/blocking_demo.sql`; do not execute the whole file together. All demonstration
+row locks are released with ROLLBACK and no ticket data is changed.
+
+### Optional query-level statistics
+
+An administrator can add `pg_stat_statements` to the existing
+`shared_preload_libraries` configuration, preserving any other entries, and restart
+PostgreSQL. Ensure `compute_query_id` is `auto` or `on`. Then, in `helpdesk_perf`:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA public;
+```
+
+If already installed elsewhere, adjust the qualified view names in the optional
+script to its actual schema. Run workloads and then execute:
+
+```sh
+psql -X -v ON_ERROR_STOP=1 -h localhost -U postgres -W -d helpdesk_perf -f sql/monitoring_statements.sql
+```
+
+This reports high-total-execution-time queries, call counts, execution-time statistics,
+and buffer/temp activity. The built-in monitoring module works without this extension.
+No script changes server configuration, resets statistics, or grants roles automatically.
+
+### Run the full test suite
+
+Without a database:
+
+```sh
+python -m unittest discover -s tests -p 'test_*.py' -v
+```
+
+Database tests are skipped unless explicitly configured. After loading the disposable
+sample database and installing indexes, configure its connection using standard
+`PGHOST`, `PGPORT`, `PGUSER`, and password-file settings, then enable integration tests.
+For PowerShell:
+
+```powershell
+$env:PGHOST = 'localhost'
+$env:PGUSER = 'postgres'
+$env:HELPDESK_TEST_DATABASE = 'helpdesk_perf'
+# Optional, only after extension setup:
+# $env:HELPDESK_TEST_STATEMENTS = '1'
+python -m unittest discover -s tests -p 'test_*.py' -v
+```
+
+For macOS/Linux:
+
+```sh
+PGHOST=localhost PGUSER=postgres HELPDESK_TEST_DATABASE=helpdesk_perf python3 -m unittest discover -s tests -p 'test_*.py' -v
+```
+
+Set `HELPDESK_TEST_PSQL` if `psql` is not on PATH, and
+`HELPDESK_TEST_STATEMENTS=1` to include the optional extension check. Tests exercise
+the original schema/data checks, index definitions and query equivalence, and actual
+monitoring queries. The schema test rolls back rows but advances identity sequences.
+Tests do not assert unstable timing thresholds or force a particular query plan.
+
+### Added files
+
+- `sql/02_indexes.sql`: three workload-specific indexes.
+- `sql/performance_queries.sql`: canonical, deterministically ordered workloads.
+- `sql/monitoring.sql`: built-in server and backlog monitoring.
+- `sql/monitoring_statements.sql`: optional pg_stat_statements reports.
+- `sql/blocking_demo.sql`: bounded, three-session blocking exercise.
+- `scripts/benchmark.py`: baseline/indexed comparison and JSON/Markdown reports.
+- `tests/index_smoke.sql`, `tests/monitoring_smoke.sql`: database checks.
+- `tests/test_benchmark.py`: benchmark logic and failure-handling tests.
+- `tests/test_database.py`: opt-in live PostgreSQL integration tests.
+- `docs/performance_monitoring.md`: rationale, limitations, and manual checklist.
+- `results/database_setup.txt`, `results/validation.txt`: local validation evidence.
+- `results/implementation_report.md`: change inventory and outstanding validation.
+- `results/git_status.txt`: requested Git status output.

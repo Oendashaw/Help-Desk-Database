@@ -1,0 +1,49 @@
+CSCE 4355 local validation
+UTC: 2026-11-15T08:51:11.399546+00:00
+Python: 3.13.5
+
+Python syntax PASS: scripts/benchmark.py
+Python syntax PASS: scripts/generate_data.py
+Python syntax PASS: tests/test_benchmark.py
+Python syntax PASS: tests/test_database.py
+Python syntax PASS: tests/test_generate_data.py
+
+Command: python3 -m unittest discover -s tests -p test_*.py -v
+Exit code: 0
+test_canonical_queries_have_stable_ordering (test_benchmark.BenchmarkTests.test_canonical_queries_have_stable_ordering) ... ok
+test_database_failure_creates_no_report (test_benchmark.BenchmarkTests.test_database_failure_creates_no_report) ... Benchmark failed: psql failed; verify connection, empty baseline indexes, permissions, and sample data. No report saved.
+ok
+test_decodes_multiline_psql_json_stream (test_benchmark.BenchmarkTests.test_decodes_multiline_psql_json_stream) ... ok
+test_existing_output_is_preserved_before_database_connection (test_benchmark.BenchmarkTests.test_existing_output_is_preserved_before_database_connection) ... ok
+test_medians_exclude_warmup_and_preserve_plans (test_benchmark.BenchmarkTests.test_medians_exclude_warmup_and_preserve_plans) ... ok
+test_rejects_changed_results (test_benchmark.BenchmarkTests.test_rejects_changed_results) ... ok
+test_rejects_duplicate_workload (test_benchmark.BenchmarkTests.test_rejects_duplicate_workload) ... ok
+test_rejects_empty_workload_results (test_benchmark.BenchmarkTests.test_rejects_empty_workload_results) ... ok
+test_rejects_extra_output (test_benchmark.BenchmarkTests.test_rejects_extra_output) ... ok
+test_rejects_multiple_statements (test_benchmark.BenchmarkTests.test_rejects_multiple_statements) ... ok
+test_rejects_non_json_output (test_benchmark.BenchmarkTests.test_rejects_non_json_output) ... ok
+test_rejects_non_select_workload (test_benchmark.BenchmarkTests.test_rejects_non_select_workload) ... ok
+test_success_writes_reports_without_connection_details (test_benchmark.BenchmarkTests.test_success_writes_reports_without_connection_details) ... ok
+test_transaction_guards_and_measurement_count (test_benchmark.BenchmarkTests.test_transaction_guards_and_measurement_count) ... ok
+test_data (test_database.DatabaseTests.test_data) ... skipped 'set HELPDESK_TEST_DATABASE to a prepared disposable database'
+test_indexes (test_database.DatabaseTests.test_indexes) ... skipped 'set HELPDESK_TEST_DATABASE to a prepared disposable database'
+test_monitoring (test_database.DatabaseTests.test_monitoring) ... skipped 'set HELPDESK_TEST_DATABASE to a prepared disposable database'
+test_optional_statements (test_database.DatabaseTests.test_optional_statements) ... skipped 'set HELPDESK_TEST_DATABASE to a prepared disposable database'
+test_schema (test_database.DatabaseTests.test_schema) ... skipped 'set HELPDESK_TEST_DATABASE to a prepared disposable database'
+test_existing_output_is_preserved (test_generate_data.GenerateDataTests.test_existing_output_is_preserved) ... ok
+test_repeatable_output (test_generate_data.GenerateDataTests.test_repeatable_output) ... ok
+
+----------------------------------------------------------------------
+Ran 21 tests in 1.611s
+
+OK (skipped=5)
+
+Created /var/folders/qh/9p9sgrr56dx0qtsdy7q89_700000gn/T/tmpigg22d0s/success.json and /var/folders/qh/9p9sgrr56dx0qtsdy7q89_700000gn/T/tmpigg22d0s/success.md; candidate indexes rolled back.
+
+Live PostgreSQL setup: BLOCKED by sandbox shared-memory permissions.
+See results/database_setup.txt for initdb failure details.
+pg_isready -h localhost -p 5432 -t 2: no response (exit code 2).
+SQL integration: NOT RUN; five tests skipped without HELPDESK_TEST_DATABASE.
+Benchmark live execution, measured speedups, and blocking demonstration: NOT RUN.
+No successful SQL validation or performance improvement is claimed.
+No Git staging, commits, pushes, initialization, or remote operations performed.
