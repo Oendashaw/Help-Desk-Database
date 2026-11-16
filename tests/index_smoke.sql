@@ -8,16 +8,19 @@ DECLARE
 BEGIN
     FOR expected IN
         SELECT * FROM (VALUES
-            ('idx_updates_ticket_created', 'ticket_updates', 'ticket_id', 'created_at', 'update_id', false),
-            ('idx_tickets_reporter_created', 'tickets', 'reported_by', 'created_at DESC', 'ticket_id DESC', false),
-            ('idx_tickets_active_agent_created', 'tickets', 'assigned_to', 'created_at DESC', 'ticket_id DESC', true)
-        ) AS e(index_name, table_name, key1, key2, key3, partial)
+            ('idx_updates_ticket_created', 'ticket_updates', 'ticket_id', 'created_at', 'update_id', false, false),
+            ('idx_tickets_reporter_created', 'tickets', 'reported_by', 'created_at', 'ticket_id', false, true),
+            ('idx_tickets_active_agent_created', 'tickets', 'assigned_to', 'created_at', 'ticket_id', true, true)
+        ) AS e(index_name, table_name, key1, key2, key3, partial, descending)
     LOOP
         SELECT t.relname AS table_name, am.amname, i.indisvalid, i.indisready,
                i.indisunique, i.indnkeyatts, i.indnatts,
                pg_get_indexdef(i.indexrelid, 1, true) AS key1,
                pg_get_indexdef(i.indexrelid, 2, true) AS key2,
                pg_get_indexdef(i.indexrelid, 3, true) AS key3,
+               pg_index_column_has_property(i.indexrelid, 1, 'asc') AS key1_ascending,
+               pg_index_column_has_property(i.indexrelid, 2, 'desc') AS key2_descending,
+               pg_index_column_has_property(i.indexrelid, 3, 'desc') AS key3_descending,
                pg_get_expr(i.indpred, i.indrelid) AS predicate
         INTO actual
         FROM pg_index AS i
@@ -32,7 +35,10 @@ BEGIN
            OR NOT actual.indisvalid OR NOT actual.indisready OR actual.indisunique
            OR actual.indnkeyatts <> 3 OR actual.indnatts <> 3
            OR actual.key1 <> expected.key1 OR actual.key2 <> expected.key2
-           OR actual.key3 <> expected.key3 THEN
+           OR actual.key3 <> expected.key3
+           OR actual.key1_ascending IS DISTINCT FROM true
+           OR actual.key2_descending IS DISTINCT FROM expected.descending
+           OR actual.key3_descending IS DISTINCT FROM expected.descending THEN
             RAISE EXCEPTION 'Incorrect definition for %', expected.index_name;
         END IF;
         IF expected.partial THEN
