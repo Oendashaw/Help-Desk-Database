@@ -73,8 +73,63 @@ These checks verify repeatable output and preservation of existing output files.
 - `tests/data_smoke.sql` checks the generated dataset after import.
 - `tests/test_generate_data.py` checks generator repeatability and file handling.
 - `results/data_generation.txt` records disposable PostgreSQL import and rollback checks.
+- `sql/03_roles.sql` creates the three cluster-wide permission groups.
+- `sql/04_permissions.sql` installs per-database grants and aggregate reporting views.
+- `tests/permissions_smoke.sql` checks allowed/denied operations and GRANT/REVOKE.
+- `results/security_validation.txt` records live role and login verification.
 
-Performance, indexing, and monitoring scripts are described below. Database roles and backup and restore remain separate team modules.
+Performance, indexing, monitoring, and permissions scripts are described below. Backup and restore remain a separate team module.
+
+## Roles and permissions
+
+Use the database owner/administrator for installation. Run role creation once per
+PostgreSQL cluster, then install permissions once in each dedicated help desk database.
+The scripts are transactional and fail on existing role/schema names rather than
+altering unrelated objects. Reuse the existing roles for another database by running
+only `04_permissions.sql` there. Install roles and permissions before running the live Python suite.
+
+Run the permission smoke test and full live integration suite as a PostgreSQL
+superuser, such as `postgres`. Database ownership or `CREATEROLE` alone does not
+permit the tests' `SET ROLE` operations. Application logins keep their limited roles.
+
+```powershell
+& 'C:\Program Files\PostgreSQL\17\bin\psql.exe' -X -v ON_ERROR_STOP=1 -h localhost -U postgres -W -d helpdesk -f sql/03_roles.sql
+& 'C:\Program Files\PostgreSQL\17\bin\psql.exe' -X -v ON_ERROR_STOP=1 -h localhost -U postgres -W -d helpdesk -f sql/04_permissions.sql
+& 'C:\Program Files\PostgreSQL\17\bin\psql.exe' -X -v ON_ERROR_STOP=1 -h localhost -U postgres -W -d helpdesk -f tests/permissions_smoke.sql
+```
+
+| Role | Access |
+|---|---|
+| `helpdesk_agent` | Read staff IDs/names/departments, assets, tickets, and updates. Create tickets and append updates. Edit ticket assignment, status, and priority. |
+| `asset_reader` | Read device records only. |
+| `report_reader` | Read `reporting.ticket_summary` and `reporting.asset_inventory`, which contain aggregate counts. |
+
+Agents cannot read staff email, edit staff/devices, rewrite ticket updates, delete
+records, or create public tables. Access applies across the help desk dataset;
+per-agent row filtering is outside this module. Report readers have no base-table
+access. The aggregate views deliberately use their owner's underlying table access.
+Installation removes PUBLIC table/sequence grants and PUBLIC's ability to create
+objects in the `public` schema, so use a dedicated project database. Existing grants
+to other named roles are outside this script's scope.
+
+These three roles are NOLOGIN permission groups with no administrative attributes.
+To add a local demonstration login, run the following in an administrator's psql
+session, then set its password at the interactive prompt. Repeat with distinct login
+names for the other two groups. Credentials must stay outside the repository.
+
+```sql
+CREATE ROLE demo_agent LOGIN;
+GRANT helpdesk_agent TO demo_agent;
+\password demo_agent
+```
+
+The permission smoke test uses `SET LOCAL ROLE`, performs allowed actions, checks
+denied actions for all three groups, compares reporting totals, and demonstrates
+GRANT followed by REVOKE. Rows and temporary grants are rolled back; identity
+sequences may advance. Run it after loading the sample data. For `helpdesk_perf`,
+apply `04_permissions.sql` to that database before enabling live integration tests.
+Full server-wide monitoring visibility requires a separately authorized monitoring
+login; these application roles do not receive `pg_read_all_stats`.
 
 
 ## Performance, indexing, and monitoring
@@ -186,7 +241,7 @@ psql -X -v ON_ERROR_STOP=1 -h localhost -U postgres -W -d helpdesk_perf -f sql/m
 
 This reports high-total-execution-time queries, call counts, execution-time statistics,
 and buffer/temp activity. The built-in monitoring module works without this extension.
-No script changes server configuration, resets statistics, or grants roles automatically.
+The monitoring scripts do not change server configuration, reset statistics, or grant roles.
 
 ### Run the full test suite
 
@@ -197,8 +252,9 @@ python -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
 Database tests are skipped unless explicitly configured. After loading the disposable
-sample database and installing indexes, configure its connection using standard
+sample database and installing indexes and permissions, configure its connection using standard
 `PGHOST`, `PGPORT`, `PGUSER`, and password-file settings, then enable integration tests.
+Use a superuser test login because the permission checks switch between all three groups.
 For PowerShell:
 
 ```powershell

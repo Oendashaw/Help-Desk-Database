@@ -1,6 +1,7 @@
 """Opt-in PostgreSQL checks on a prepared, disposable sample database.
 
 Set HELPDESK_TEST_DATABASE and standard PGHOST/PGPORT/PGUSER/PGPASSFILE.
+Use a superuser test login; permission checks SET ROLE to each application group.
 The schema smoke test advances identity sequences even though rows roll back.
 """
 import os
@@ -24,6 +25,9 @@ class DatabaseTests(unittest.TestCase):
 
     def test_schema(self):
         self.run_sql('tests/schema_smoke.sql')
+
+    def test_permissions(self):
+        self.run_sql('tests/permissions_smoke.sql')
 
     def test_data(self):
         self.run_sql('tests/data_smoke.sql')
