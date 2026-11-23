@@ -1,0 +1,319 @@
+Recovery module verification on PostgreSQL 17
+Timestamp: 2026-11-22T18:10:10.3964071-06:00
+Command [schema]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -w -v ON_ERROR_STOP=1 -f sql/01_schema.sql
+BEGIN
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+COMMIT
+Exit code: 0 (expected 0)
+Command [sample data]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -w -v ON_ERROR_STOP=1 -f sample_data/helpdesk_data.sql
+BEGIN
+LOCK TABLE
+DO
+COPY 200
+COPY 1000
+COPY 50000
+COPY 100272
+ setval
+--------
+    200
+(1 row)
+
+ANALYZE
+ setval
+--------
+   1000
+(1 row)
+
+ANALYZE
+ setval
+--------
+  50000
+(1 row)
+
+ANALYZE
+ setval
+--------
+ 100272
+(1 row)
+
+ANALYZE
+COMMIT
+Exit code: 0 (expected 0)
+Command [indexes]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -w -v ON_ERROR_STOP=1 -f sql/02_indexes.sql
+BEGIN
+SET
+SET
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+COMMIT
+Exit code: 0 (expected 0)
+Command [role creation]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -w -v ON_ERROR_STOP=1 -f sql/03_roles.sql
+BEGIN
+CREATE ROLE
+CREATE ROLE
+CREATE ROLE
+COMMIT
+Exit code: 0 (expected 0)
+Command [permissions and views]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -w -v ON_ERROR_STOP=1 -f sql/04_permissions.sql
+BEGIN
+CREATE SCHEMA
+CREATE VIEW
+CREATE VIEW
+REVOKE
+REVOKE
+REVOKE
+GRANT
+GRANT
+GRANT
+GRANT
+GRANT
+GRANT
+GRANT
+GRANT
+GRANT
+GRANT
+COMMIT
+Exit code: 0 (expected 0)
+Command [permission smoke]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -w -v ON_ERROR_STOP=1 -f tests/permissions_smoke.sql
+BEGIN
+SET
+DO
+SET
+psql:tests/permissions_smoke.sql:63: NOTICE:  helpdesk_agent allowed/denied checks passed
+DO
+RESET
+SET
+psql:tests/permissions_smoke.sql:91: NOTICE:  asset_reader allowed/denied checks passed
+DO
+RESET
+SET
+psql:tests/permissions_smoke.sql:119: NOTICE:  report_reader allowed/denied checks passed
+DO
+RESET
+DO
+GRANT
+SET
+ asset_id
+----------
+        1
+(1 row)
+
+RESET
+REVOKE
+SET
+psql:tests/permissions_smoke.sql:149: NOTICE:  GRANT and REVOKE checks passed
+DO
+RESET
+ROLLBACK
+Exit code: 0 (expected 0)
+Command [existing roles safely refused]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -w -v ON_ERROR_STOP=1 -f sql/03_roles.sql
+BEGIN
+psql:sql/03_roles.sql:4: ERROR:  role "helpdesk_agent" already exists
+Exit code: 3 (expected 3)
+Command [existing reporting schema safely refused]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -w -v ON_ERROR_STOP=1 -f sql/04_permissions.sql
+BEGIN
+psql:sql/04_permissions.sql:3: ERROR:  schema "reporting" already exists
+Exit code: 3 (expected 3)
+Command [permissions unchanged after refused reruns]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -w -v ON_ERROR_STOP=1 -f tests/permissions_smoke.sql
+BEGIN
+SET
+DO
+SET
+DO
+psql:tests/permissions_smoke.sql:63: NOTICE:  helpdesk_agent allowed/denied checks passed
+RESET
+SET
+psql:tests/permissions_smoke.sql:91: NOTICE:  asset_reader allowed/denied checks passed
+DO
+RESET
+SET
+psql:tests/permissions_smoke.sql:119: NOTICE:  report_reader allowed/denied checks passed
+DO
+RESET
+DO
+GRANT
+SET
+ asset_id
+----------
+        1
+(1 row)
+
+RESET
+REVOKE
+SET
+DO
+psql:tests/permissions_smoke.sql:149: NOTICE:  GRANT and REVOKE checks passed
+RESET
+ROLLBACK
+Exit code: 0 (expected 0)
+Command [create temporary demo logins]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -v ON_ERROR_STOP=1 -c CREATE ROLE demo_agent LOGIN; GRANT helpdesk_agent TO demo_agent; CREATE ROLE demo_asset LOGIN; GRANT asset_reader TO demo_asset; CREATE ROLE demo_report LOGIN; GRANT report_reader TO demo_report; CREATE ROLE demo_unassigned LOGIN;
+CREATE ROLE
+GRANT ROLE
+CREATE ROLE
+GRANT ROLE
+CREATE ROLE
+GRANT ROLE
+CREATE ROLE
+Exit code: 0 (expected 0)
+Command [agent ticket creation and update]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -w -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U demo_agent -c BEGIN; UPDATE public.tickets SET status = status WHERE ticket_id = 1; WITH new_ticket AS (INSERT INTO public.tickets (reported_by, subject, description) VALUES (1, 'Login test', 'Synthetic') RETURNING ticket_id) INSERT INTO public.ticket_updates (ticket_id, author_id, update_text) SELECT ticket_id, 1, 'Login test note' FROM new_ticket; ROLLBACK;
+BEGIN
+UPDATE 1
+INSERT 0 1
+ROLLBACK
+Exit code: 0 (expected 0)
+Command [agent email denied]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -w -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U demo_agent -c SELECT email FROM public.staff;
+ERROR:  42501: permission denied for table staff
+LOCATION:  aclcheck_error, aclchk.c:2845
+Exit code: 1 (expected 1)
+Command [agent cross-role switch denied]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -w -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U demo_agent -c SET ROLE report_reader;
+ERROR:  42501: permission denied to set role "report_reader"
+LOCATION:  call_string_check_hook, guc.c:6947
+Exit code: 1 (expected 1)
+Command [asset reading allowed]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -w -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U demo_asset -c SELECT asset_id, asset_type FROM public.assets LIMIT 1;
+ asset_id | asset_type
+----------+------------
+        1 | laptop
+(1 row)
+
+Exit code: 0 (expected 0)
+Command [asset writing denied]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -w -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U demo_asset -c UPDATE public.assets SET asset_type = 'changed' WHERE false;
+ERROR:  42501: permission denied for table assets
+LOCATION:  aclcheck_error, aclchk.c:2845
+Exit code: 1 (expected 1)
+Command [asset ticket access denied]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -w -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U demo_asset -c SELECT * FROM public.tickets LIMIT 1;
+ERROR:  42501: permission denied for table tickets
+LOCATION:  aclcheck_error, aclchk.c:2845
+Exit code: 1 (expected 1)
+Command [asset cross-role switch denied]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -w -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U demo_asset -c SET ROLE helpdesk_agent;
+ERROR:  42501: permission denied to set role "helpdesk_agent"
+LOCATION:  call_string_check_hook, guc.c:6947
+Exit code: 1 (expected 1)
+Command [report views allowed]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -w -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U demo_report -c SELECT sum(ticket_count) FROM reporting.ticket_summary; SELECT sum(asset_count) FROM reporting.asset_inventory;
+  sum
+-------
+ 50000
+(1 row)
+
+ sum
+------
+ 1000
+(1 row)
+
+Exit code: 0 (expected 0)
+Command [report raw table denied]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -w -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U demo_report -c SELECT * FROM public.tickets LIMIT 1;
+ERROR:  42501: permission denied for table tickets
+LOCATION:  aclcheck_error, aclchk.c:2845
+Exit code: 1 (expected 1)
+Command [report writing denied]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -w -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U demo_report -c DELETE FROM public.tickets WHERE false;
+ERROR:  42501: permission denied for table tickets
+LOCATION:  aclcheck_error, aclchk.c:2845
+Exit code: 1 (expected 1)
+Command [report cross-role switch denied]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -w -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U demo_report -c SET ROLE asset_reader;
+ERROR:  42501: permission denied to set role "asset_reader"
+LOCATION:  call_string_check_hook, guc.c:6947
+Exit code: 1 (expected 1)
+Command [unassigned login has no PUBLIC table access]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -w -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -U demo_unassigned -c SELECT * FROM public.assets LIMIT 1;
+ERROR:  42501: permission denied for table assets
+LOCATION:  aclcheck_error, aclchk.c:2845
+Exit code: 1 (expected 1)
+Command [optional monitoring extension]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -v ON_ERROR_STOP=1 -c CREATE EXTENSION pg_stat_statements;
+CREATE EXTENSION
+Exit code: 0 (expected 0)
+Command [backup and verified restore]: python scripts/backup_restore.py --dbname helpdesk_recovery_test --restore-db helpdesk_restore_demo --pg-bin C:/Program Files/PostgreSQL/17/bin --backup backups/recovery_c87e759fc08b4de593e1c05ab915050b.dump --output C:\Users\olien\AppData\Local\Temp\helpdesk-security-732e0ab5ca974c05adb69c5dc7d34ac9\recovery.json
+Backup and restore verified. Report saved to C:\Users\olien\AppData\Local\Temp\helpdesk-security-732e0ab5ca974c05adb69c5dc7d34ac9\recovery.json.
+Exit code: 0 (expected 0)
+Command [existing restore database refused]: python scripts/backup_restore.py --dbname helpdesk_recovery_test --restore-db helpdesk_restore_demo --pg-bin C:/Program Files/PostgreSQL/17/bin --backup C:\Users\olien\AppData\Local\Temp\helpdesk-security-732e0ab5ca974c05adb69c5dc7d34ac9\second.dump --output C:\Users\olien\AppData\Local\Temp\helpdesk-security-732e0ab5ca974c05adb69c5dc7d34ac9\existing_target.json
+Recovery failed at create restore database: createdb failed with exit code 1. Created artifacts are retained; use new paths and a new restore name to retry.
+Exit code: 1 (expected 1)
+Command [existing restore data preserved]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -v ON_ERROR_STOP=1 -d helpdesk_restore_demo -f tests/data_smoke.sql
+psql:tests/data_smoke.sql:41: NOTICE:  Generated data checks passed
+DO
+   table_name   | row_count
+----------------+-----------
+ staff          |       200
+ assets         |      1000
+ tickets        |     50000
+ ticket_updates |    100272
+(4 rows)
+
+Exit code: 0 (expected 0)
+Command [Python compilation]: python -m compileall -q scripts
+Exit code: 0 (expected 0)
+Command [full suite with live database]: python -m unittest discover -s tests -p test_*.py -v
+test_failed_restore_is_not_reported_as_success (test_backup_restore.BackupRestoreTests.test_failed_restore_is_not_reported_as_success) ... Recovery failed at restore: simulated restore failure. Created artifacts are retained; use new paths and a new restore name to retry.
+ok
+test_manifest_detects_changed_data (test_backup_restore.BackupRestoreTests.test_manifest_detects_changed_data) ... ok
+test_manifest_reads_all_tables_in_one_read_only_transaction (test_backup_restore.BackupRestoreTests.test_manifest_reads_all_tables_in_one_read_only_transaction) ... ok
+test_preserves_existing_artifacts_before_connecting (test_backup_restore.BackupRestoreTests.test_preserves_existing_artifacts_before_connecting) ... usage: backup_restore.py [-h] --dbname DBNAME --restore-db RESTORE_DB --backup
+                         BACKUP --output OUTPUT [--pg-bin PG_BIN]
+                         [--host HOST] [--port PORT] [--username USERNAME]
+backup_restore.py: error: Backup or report already exists; select new paths
+usage: backup_restore.py [-h] --dbname DBNAME --restore-db RESTORE_DB --backup
+                         BACKUP --output OUTPUT [--pg-bin PG_BIN]
+                         [--host HOST] [--port PORT] [--username USERNAME]
+backup_restore.py: error: Backup or report already exists; select new paths
+ok
+test_refuses_connection_strings_and_maintenance_targets (test_backup_restore.BackupRestoreTests.test_refuses_connection_strings_and_maintenance_targets) ... usage: backup_restore.py [-h] --dbname DBNAME --restore-db RESTORE_DB --backup
+                         BACKUP --output OUTPUT [--pg-bin PG_BIN]
+                         [--host HOST] [--port PORT] [--username USERNAME]
+backup_restore.py: error: Database names must be lowercase ASCII identifiers, not connection strings
+usage: backup_restore.py [-h] --dbname DBNAME --restore-db RESTORE_DB --backup
+                         BACKUP --output OUTPUT [--pg-bin PG_BIN]
+                         [--host HOST] [--port PORT] [--username USERNAME]
+backup_restore.py: error: Use a separate, new restore database
+ok
+test_refuses_same_database_before_connecting (test_backup_restore.BackupRestoreTests.test_refuses_same_database_before_connecting) ... usage: backup_restore.py [-h] --dbname DBNAME --restore-db RESTORE_DB --backup
+                         BACKUP --output OUTPUT [--pg-bin PG_BIN]
+                         [--host HOST] [--port PORT] [--username USERNAME]
+backup_restore.py: error: Use a separate, new restore database
+ok
+test_success_preserves_restore_safety_options (test_backup_restore.BackupRestoreTests.test_success_preserves_restore_safety_options) ... ok
+test_canonical_queries_have_stable_ordering (test_benchmark.BenchmarkTests.test_canonical_queries_have_stable_ordering) ... ok
+test_database_failure_creates_no_report (test_benchmark.BenchmarkTests.test_database_failure_creates_no_report) ... Benchmark failed: psql failed; verify connection, empty baseline indexes, permissions, and sample data. No report saved.
+ok
+test_decodes_multiline_psql_json_stream (test_benchmark.BenchmarkTests.test_decodes_multiline_psql_json_stream) ... ok
+test_existing_output_is_preserved_before_database_connection (test_benchmark.BenchmarkTests.test_existing_output_is_preserved_before_database_connection) ... ok
+test_medians_exclude_warmup_and_preserve_plans (test_benchmark.BenchmarkTests.test_medians_exclude_warmup_and_preserve_plans) ... ok
+test_rejects_changed_results (test_benchmark.BenchmarkTests.test_rejects_changed_results) ... ok
+test_rejects_duplicate_workload (test_benchmark.BenchmarkTests.test_rejects_duplicate_workload) ... ok
+test_rejects_empty_workload_results (test_benchmark.BenchmarkTests.test_rejects_empty_workload_results) ... ok
+test_rejects_extra_output (test_benchmark.BenchmarkTests.test_rejects_extra_output) ... ok
+test_rejects_multiple_statements (test_benchmark.BenchmarkTests.test_rejects_multiple_statements) ... ok
+test_rejects_non_json_output (test_benchmark.BenchmarkTests.test_rejects_non_json_output) ... ok
+test_rejects_non_select_workload (test_benchmark.BenchmarkTests.test_rejects_non_select_workload) ... ok
+test_success_writes_reports_without_connection_details (test_benchmark.BenchmarkTests.test_success_writes_reports_without_connection_details) ... ok
+test_transaction_guards_and_measurement_count (test_benchmark.BenchmarkTests.test_transaction_guards_and_measurement_count) ... ok
+test_data (test_database.DatabaseTests.test_data) ... ok
+test_indexes (test_database.DatabaseTests.test_indexes) ... ok
+test_indexes_reject_wrong_sort_order (test_database.DatabaseTests.test_indexes_reject_wrong_sort_order) ... ok
+test_monitoring (test_database.DatabaseTests.test_monitoring) ... ok
+test_optional_statements (test_database.DatabaseTests.test_optional_statements) ... ok
+test_permissions (test_database.DatabaseTests.test_permissions) ... ok
+test_recovery (test_database.DatabaseTests.test_recovery) ... ok
+test_schema (test_database.DatabaseTests.test_schema) ... ok
+test_existing_output_is_preserved (test_generate_data.GenerateDataTests.test_existing_output_is_preserved) ... ok
+test_repeatable_output (test_generate_data.GenerateDataTests.test_repeatable_output) ... ok
+
+----------------------------------------------------------------------
+Ran 31 tests in 8.217s
+
+OK
+Backup and restore verified. Report saved to C:\Users\olien\AppData\Local\Temp\tmpmh12kllk\report.json.
+Created C:\Users\olien\AppData\Local\Temp\tmpdd9h4wzs\success.json and C:\Users\olien\AppData\Local\Temp\tmpdd9h4wzs\success.md; candidate indexes rolled back.
+Exit code: 0 (expected 0)
+Command [final row counts]: C:/Program Files/PostgreSQL/17/bin/psql.exe -X -v ON_ERROR_STOP=1 -c SELECT 'staff' AS table_name, count(*) FROM public.staff UNION ALL SELECT 'assets', count(*) FROM public.assets UNION ALL SELECT 'tickets', count(*) FROM public.tickets UNION ALL SELECT 'ticket_updates', count(*) FROM public.ticket_updates;
+   table_name   | count
+----------------+--------
+ staff          |    200
+ assets         |   1000
+ tickets        |  50000
+ ticket_updates | 100272
+(4 rows)
+
+Exit code: 0 (expected 0)
+All security and regression checks passed.
+Temporary PostgreSQL instance stopped.

@@ -6,7 +6,7 @@ This project uses a PostgreSQL database to track help desk tickets, staff, and c
 
 ## Prerequisites
 
-- PostgreSQL 17 with the `psql`, `pg_dump`, and `pg_restore` command-line tools
+- PostgreSQL 17 with the `psql`, `createdb`, `pg_dump`, and `pg_restore` command-line tools
 - Python 3 for sample data generation and verification scripts
 
 ## Database design
@@ -77,8 +77,12 @@ These checks verify repeatable output and preservation of existing output files.
 - `sql/04_permissions.sql` installs per-database grants and aggregate reporting views.
 - `tests/permissions_smoke.sql` checks allowed/denied operations and GRANT/REVOKE.
 - `results/security_validation.txt` records live role and login verification.
+- `scripts/backup_restore.py` backs up and verifies a separate restored database.
+- `tests/test_backup_restore.py` checks recovery safeguards and failure handling.
+- `results/recovery_run_01.json` records the verified source and restored manifests.
+- `results/recovery_validation.txt` records live recovery and regression checks.
 
-Performance, indexing, monitoring, and permissions scripts are described below. Backup and restore remain a separate team module.
+Performance, indexing, monitoring, permissions, and backup/recovery scripts are described below.
 
 ## Roles and permissions
 
@@ -130,6 +134,59 @@ sequences may advance. Run it after loading the sample data. For `helpdesk_perf`
 apply `04_permissions.sql` to that database before enabling live integration tests.
 Full server-wide monitoring visibility requires a separately authorized monitoring
 login; these application roles do not receive `pg_read_all_stats`.
+
+## Backup and recovery
+
+Use a PostgreSQL 17 superuser and a prepared database containing the schema, sample
+data, indexes, and permissions. Configure a password file or `PGPASSFILE` as described
+below; utilities use `-w` and fail instead of prompting. Run from the repository root.
+Choose unused restore database, backup, and report names for each run.
+
+```powershell
+python scripts/backup_restore.py --dbname helpdesk --restore-db helpdesk_restore_test `
+  --pg-bin 'C:\Program Files\PostgreSQL\17\bin' --host localhost --username postgres `
+  --backup backups/helpdesk.dump --output results/recovery_demo.json
+```
+
+The script uses only the standard library and PostgreSQL utilities. It creates a
+custom-format archive, creates a new database from `template0`, and restores in one
+transaction with ownership and grants preserved. Source and restore names must be
+different lowercase ASCII identifiers of at most 63 characters. Connection strings
+are not accepted as database names. Both databases use the same connection/cluster.
+
+Keep the source quiet during this demonstration. Source fingerprints and pg_dump
+are separate snapshots, so concurrent changes can fail verification even when the
+archive itself is valid. Full-table fingerprints are intended for this 50,000-ticket
+dataset. Verification compares all four tables' counts, fingerprints covering every row,
+sample records, indexes, sequence values, reporting definitions/results, owners,
+and relation/column grants. The restored database then passes the existing schema,
+index, and permission smoke tests. These tests roll back records but can advance IDs.
+
+The JSON report records success or failure and the last stage reached. Existing
+backup/report files are preserved. An existing restore database is never reused.
+If an operation fails, the archive/report and any newly created restore database
+remain for inspection; there is no automatic deletion. Retry with new file paths
+and a new restore name. The source database is only read.
+
+`restore_database_created` is true only after confirmed creation; null means the
+creation command failed and the database's state must be checked before cleanup.
+
+To restore a saved archive later when the source is unavailable, use the native
+utilities with a new target name on the same cluster, then run the smoke checks.
+
+```powershell
+& 'C:\Program Files\PostgreSQL\17\bin\createdb.exe' -w -h localhost -U postgres -T template0 helpdesk_recovered
+& 'C:\Program Files\PostgreSQL\17\bin\pg_restore.exe' -w -h localhost -U postgres --exit-on-error --single-transaction -d helpdesk_recovered backups/helpdesk.dump
+```
+
+Roles are cluster-wide and are reused on the same cluster. The archive does not
+back up global roles, passwords, or server configuration. This is a verified
+same-cluster database recovery exercise. Backups stay excluded from Git; keep
+verification reports containing synthetic data as project evidence.
+
+The live Python suite also runs recovery using unique temporary restore names and
+removes only the restore database created by that test. Run it against a disposable
+prepared source using the superuser test login described below.
 
 
 ## Performance, indexing, and monitoring

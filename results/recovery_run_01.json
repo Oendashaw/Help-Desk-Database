@@ -1,0 +1,1002 @@
+{
+  "success": true,
+  "source_database": "helpdesk_recovery_test",
+  "restore_database": "helpdesk_restore_demo",
+  "backup_file": "recovery_c87e759fc08b4de593e1c05ab915050b.dump",
+  "started_at_utc": "2026-11-23T00:10:16.390522+00:00",
+  "restore_database_created": true,
+  "stage": "complete",
+  "source": {
+    "views": {
+      "ticket_summary": " SELECT status,\n    priority,\n    count(*) AS ticket_count\n   FROM tickets\n  GROUP BY status, priority;",
+      "asset_inventory": " SELECT asset_type,\n    count(*) AS asset_count,\n    count(*) FILTER (WHERE (assigned_to IS NOT NULL)) AS assigned_count,\n    count(*) FILTER (WHERE (assigned_to IS NULL)) AS unassigned_count\n   FROM assets\n  GROUP BY asset_type;"
+    },
+    "tables": {
+      "staff": {
+        "rows": 200,
+        "samples": [
+          {
+            "email": "staff0001@example.invalid",
+            "staff_id": 1,
+            "full_name": "Staff 0001",
+            "department": "IT"
+          },
+          {
+            "email": "staff0002@example.invalid",
+            "staff_id": 2,
+            "full_name": "Staff 0002",
+            "department": "IT"
+          },
+          {
+            "email": "staff0003@example.invalid",
+            "staff_id": 3,
+            "full_name": "Staff 0003",
+            "department": "IT"
+          }
+        ],
+        "fingerprint": "f5c02d82aae55ac466586f4a23cddb05"
+      },
+      "assets": {
+        "rows": 1000,
+        "samples": [
+          {
+            "asset_id": 1,
+            "asset_tag": "ASSET-00001",
+            "asset_type": "laptop",
+            "assigned_to": 69
+          },
+          {
+            "asset_id": 2,
+            "asset_tag": "ASSET-00002",
+            "asset_type": "desktop",
+            "assigned_to": 193
+          },
+          {
+            "asset_id": 3,
+            "asset_tag": "ASSET-00003",
+            "asset_type": "laptop",
+            "assigned_to": 181
+          }
+        ],
+        "fingerprint": "1e66d80b8972ac0ea041a825373bb291"
+      },
+      "tickets": {
+        "rows": 50000,
+        "samples": [
+          {
+            "status": "resolved",
+            "subject": "Access to \"shared\" folder denied #1",
+            "asset_id": null,
+            "priority": "medium",
+            "ticket_id": 1,
+            "created_at": "2026-04-15T04:45:00+00:00",
+            "assigned_to": 9,
+            "description": "Synthetic support request 1. Access to \"shared\" folder denied.",
+            "reported_by": 141
+          },
+          {
+            "status": "open",
+            "subject": "Application freezes, then closes #2",
+            "asset_id": 188,
+            "priority": "medium",
+            "ticket_id": 2,
+            "created_at": "2026-10-03T09:59:00+00:00",
+            "assigned_to": 4,
+            "description": "Synthetic support request 2. Application freezes, then closes.",
+            "reported_by": 195
+          },
+          {
+            "status": "in_progress",
+            "subject": "Device runs slowly #3",
+            "asset_id": 423,
+            "priority": "medium",
+            "ticket_id": 3,
+            "created_at": "2026-08-14T14:46:00+00:00",
+            "assigned_to": 5,
+            "description": "Synthetic support request 3. Device runs slowly.",
+            "reported_by": 152
+          }
+        ],
+        "fingerprint": "a0c52dbe81b1921b40d23fcc7e450ed2"
+      },
+      "ticket_updates": {
+        "rows": 100272,
+        "samples": [
+          {
+            "author_id": 9,
+            "ticket_id": 1,
+            "update_id": 1,
+            "created_at": "2026-04-15T05:45:00+00:00",
+            "update_text": "Synthetic update 1 for ticket 1"
+          },
+          {
+            "author_id": 9,
+            "ticket_id": 1,
+            "update_id": 2,
+            "created_at": "2026-04-15T06:45:00+00:00",
+            "update_text": "Synthetic update 2 for ticket 1"
+          },
+          {
+            "author_id": 4,
+            "ticket_id": 2,
+            "update_id": 3,
+            "created_at": "2026-10-03T10:59:00+00:00",
+            "update_text": "Synthetic update 1 for ticket 2"
+          }
+        ],
+        "fingerprint": "214caaded7b2ab50c32a8a263cb7c3ae"
+      }
+    },
+    "indexes": [
+      "CREATE UNIQUE INDEX assets_asset_tag_key ON public.assets USING btree (asset_tag)",
+      "CREATE UNIQUE INDEX assets_pkey ON public.assets USING btree (asset_id)",
+      "CREATE UNIQUE INDEX staff_email_key ON public.staff USING btree (email)",
+      "CREATE UNIQUE INDEX staff_pkey ON public.staff USING btree (staff_id)",
+      "CREATE INDEX idx_updates_ticket_created ON public.ticket_updates USING btree (ticket_id, created_at, update_id)",
+      "CREATE UNIQUE INDEX ticket_updates_pkey ON public.ticket_updates USING btree (update_id)",
+      "CREATE INDEX idx_tickets_active_agent_created ON public.tickets USING btree (assigned_to, created_at DESC, ticket_id DESC) WHERE (status = ANY (ARRAY['open'::text, 'in_progress'::text]))",
+      "CREATE INDEX idx_tickets_reporter_created ON public.tickets USING btree (reported_by, created_at DESC, ticket_id DESC)",
+      "CREATE UNIQUE INDEX tickets_pkey ON public.tickets USING btree (ticket_id)"
+    ],
+    "sequences": {
+      "staff_staff_id_seq": 200,
+      "assets_asset_id_seq": 1000,
+      "tickets_ticket_id_seq": 50003,
+      "ticket_updates_update_id_seq": 100275
+    },
+    "superuser": true,
+    "privileges": [
+      {
+        "acl": [
+          "asset_reader=r/security_owner",
+          "helpdesk_agent=r/security_owner",
+          "security_owner=arwdDxtm/security_owner"
+        ],
+        "name": "assets",
+        "owner": "security_owner",
+        "schema": "public",
+        "columns": {
+          "asset_id": null,
+          "asset_tag": null,
+          "asset_type": null,
+          "assigned_to": null
+        }
+      },
+      {
+        "acl": [
+          "security_owner=rwU/security_owner"
+        ],
+        "name": "assets_asset_id_seq",
+        "owner": "security_owner",
+        "schema": "public",
+        "columns": {
+          "log_cnt": null,
+          "is_called": null,
+          "last_value": null
+        }
+      },
+      {
+        "acl": [
+          "=r/security_owner",
+          "security_owner=arwdDxtm/security_owner"
+        ],
+        "name": "pg_stat_statements",
+        "owner": "security_owner",
+        "schema": "public",
+        "columns": {
+          "dbid": null,
+          "rows": null,
+          "calls": null,
+          "plans": null,
+          "query": null,
+          "userid": null,
+          "queryid": null,
+          "wal_fpi": null,
+          "toplevel": null,
+          "wal_bytes": null,
+          "stats_since": null,
+          "wal_records": null,
+          "jit_functions": null,
+          "max_exec_time": null,
+          "max_plan_time": null,
+          "min_exec_time": null,
+          "min_plan_time": null,
+          "local_blks_hit": null,
+          "mean_exec_time": null,
+          "mean_plan_time": null,
+          "temp_blks_read": null,
+          "jit_deform_time": null,
+          "local_blks_read": null,
+          "shared_blks_hit": null,
+          "total_exec_time": null,
+          "total_plan_time": null,
+          "jit_deform_count": null,
+          "shared_blks_read": null,
+          "stddev_exec_time": null,
+          "stddev_plan_time": null,
+          "jit_emission_time": null,
+          "jit_inlining_time": null,
+          "temp_blks_written": null,
+          "jit_emission_count": null,
+          "jit_inlining_count": null,
+          "local_blks_dirtied": null,
+          "local_blks_written": null,
+          "minmax_stats_since": null,
+          "temp_blk_read_time": null,
+          "jit_generation_time": null,
+          "local_blk_read_time": null,
+          "shared_blks_dirtied": null,
+          "shared_blks_written": null,
+          "temp_blk_write_time": null,
+          "local_blk_write_time": null,
+          "shared_blk_read_time": null,
+          "jit_optimization_time": null,
+          "shared_blk_write_time": null,
+          "jit_optimization_count": null
+        }
+      },
+      {
+        "acl": [
+          "=r/security_owner",
+          "security_owner=arwdDxtm/security_owner"
+        ],
+        "name": "pg_stat_statements_info",
+        "owner": "security_owner",
+        "schema": "public",
+        "columns": {
+          "dealloc": null,
+          "stats_reset": null
+        }
+      },
+      {
+        "acl": [
+          "security_owner=arwdDxtm/security_owner"
+        ],
+        "name": "staff",
+        "owner": "security_owner",
+        "schema": "public",
+        "columns": {
+          "email": null,
+          "staff_id": [
+            "helpdesk_agent=r/security_owner"
+          ],
+          "full_name": [
+            "helpdesk_agent=r/security_owner"
+          ],
+          "department": [
+            "helpdesk_agent=r/security_owner"
+          ]
+        }
+      },
+      {
+        "acl": [
+          "security_owner=rwU/security_owner"
+        ],
+        "name": "staff_staff_id_seq",
+        "owner": "security_owner",
+        "schema": "public",
+        "columns": {
+          "log_cnt": null,
+          "is_called": null,
+          "last_value": null
+        }
+      },
+      {
+        "acl": [
+          "helpdesk_agent=r/security_owner",
+          "security_owner=arwdDxtm/security_owner"
+        ],
+        "name": "ticket_updates",
+        "owner": "security_owner",
+        "schema": "public",
+        "columns": {
+          "author_id": [
+            "helpdesk_agent=a/security_owner"
+          ],
+          "ticket_id": [
+            "helpdesk_agent=a/security_owner"
+          ],
+          "update_id": null,
+          "created_at": null,
+          "update_text": [
+            "helpdesk_agent=a/security_owner"
+          ]
+        }
+      },
+      {
+        "acl": [
+          "helpdesk_agent=U/security_owner",
+          "security_owner=rwU/security_owner"
+        ],
+        "name": "ticket_updates_update_id_seq",
+        "owner": "security_owner",
+        "schema": "public",
+        "columns": {
+          "log_cnt": null,
+          "is_called": null,
+          "last_value": null
+        }
+      },
+      {
+        "acl": [
+          "helpdesk_agent=r/security_owner",
+          "security_owner=arwdDxtm/security_owner"
+        ],
+        "name": "tickets",
+        "owner": "security_owner",
+        "schema": "public",
+        "columns": {
+          "status": [
+            "helpdesk_agent=aw/security_owner"
+          ],
+          "subject": [
+            "helpdesk_agent=a/security_owner"
+          ],
+          "asset_id": [
+            "helpdesk_agent=a/security_owner"
+          ],
+          "priority": [
+            "helpdesk_agent=aw/security_owner"
+          ],
+          "ticket_id": null,
+          "created_at": null,
+          "assigned_to": [
+            "helpdesk_agent=aw/security_owner"
+          ],
+          "description": [
+            "helpdesk_agent=a/security_owner"
+          ],
+          "reported_by": [
+            "helpdesk_agent=a/security_owner"
+          ]
+        }
+      },
+      {
+        "acl": [
+          "helpdesk_agent=U/security_owner",
+          "security_owner=rwU/security_owner"
+        ],
+        "name": "tickets_ticket_id_seq",
+        "owner": "security_owner",
+        "schema": "public",
+        "columns": {
+          "log_cnt": null,
+          "is_called": null,
+          "last_value": null
+        }
+      },
+      {
+        "acl": [
+          "report_reader=r/security_owner",
+          "security_owner=arwdDxtm/security_owner"
+        ],
+        "name": "asset_inventory",
+        "owner": "security_owner",
+        "schema": "reporting",
+        "columns": {
+          "asset_type": null,
+          "asset_count": null,
+          "assigned_count": null,
+          "unassigned_count": null
+        }
+      },
+      {
+        "acl": [
+          "report_reader=r/security_owner",
+          "security_owner=arwdDxtm/security_owner"
+        ],
+        "name": "ticket_summary",
+        "owner": "security_owner",
+        "schema": "reporting",
+        "columns": {
+          "status": null,
+          "priority": null,
+          "ticket_count": null
+        }
+      }
+    ],
+    "server_major": 17,
+    "ticket_summary": [
+      {
+        "status": "closed",
+        "priority": "high",
+        "ticket_count": 3397
+      },
+      {
+        "status": "closed",
+        "priority": "low",
+        "ticket_count": 7847
+      },
+      {
+        "status": "closed",
+        "priority": "medium",
+        "ticket_count": 10085
+      },
+      {
+        "status": "closed",
+        "priority": "urgent",
+        "ticket_count": 1100
+      },
+      {
+        "status": "in_progress",
+        "priority": "high",
+        "ticket_count": 1467
+      },
+      {
+        "status": "in_progress",
+        "priority": "low",
+        "ticket_count": 3511
+      },
+      {
+        "status": "in_progress",
+        "priority": "medium",
+        "ticket_count": 4440
+      },
+      {
+        "status": "in_progress",
+        "priority": "urgent",
+        "ticket_count": 514
+      },
+      {
+        "status": "open",
+        "priority": "high",
+        "ticket_count": 1127
+      },
+      {
+        "status": "open",
+        "priority": "low",
+        "ticket_count": 2548
+      },
+      {
+        "status": "open",
+        "priority": "medium",
+        "ticket_count": 3478
+      },
+      {
+        "status": "open",
+        "priority": "urgent",
+        "ticket_count": 414
+      },
+      {
+        "status": "resolved",
+        "priority": "high",
+        "ticket_count": 1449
+      },
+      {
+        "status": "resolved",
+        "priority": "low",
+        "ticket_count": 3481
+      },
+      {
+        "status": "resolved",
+        "priority": "medium",
+        "ticket_count": 4636
+      },
+      {
+        "status": "resolved",
+        "priority": "urgent",
+        "ticket_count": 506
+      }
+    ],
+    "asset_inventory": [
+      {
+        "asset_type": "desktop",
+        "asset_count": 250,
+        "assigned_count": 224,
+        "unassigned_count": 26
+      },
+      {
+        "asset_type": "laptop",
+        "asset_count": 685,
+        "assigned_count": 618,
+        "unassigned_count": 67
+      },
+      {
+        "asset_type": "printer",
+        "asset_count": 65,
+        "assigned_count": 59,
+        "unassigned_count": 6
+      }
+    ]
+  },
+  "backup_bytes": 2348585,
+  "restored": {
+    "views": {
+      "ticket_summary": " SELECT status,\n    priority,\n    count(*) AS ticket_count\n   FROM tickets\n  GROUP BY status, priority;",
+      "asset_inventory": " SELECT asset_type,\n    count(*) AS asset_count,\n    count(*) FILTER (WHERE (assigned_to IS NOT NULL)) AS assigned_count,\n    count(*) FILTER (WHERE (assigned_to IS NULL)) AS unassigned_count\n   FROM assets\n  GROUP BY asset_type;"
+    },
+    "tables": {
+      "staff": {
+        "rows": 200,
+        "samples": [
+          {
+            "email": "staff0001@example.invalid",
+            "staff_id": 1,
+            "full_name": "Staff 0001",
+            "department": "IT"
+          },
+          {
+            "email": "staff0002@example.invalid",
+            "staff_id": 2,
+            "full_name": "Staff 0002",
+            "department": "IT"
+          },
+          {
+            "email": "staff0003@example.invalid",
+            "staff_id": 3,
+            "full_name": "Staff 0003",
+            "department": "IT"
+          }
+        ],
+        "fingerprint": "f5c02d82aae55ac466586f4a23cddb05"
+      },
+      "assets": {
+        "rows": 1000,
+        "samples": [
+          {
+            "asset_id": 1,
+            "asset_tag": "ASSET-00001",
+            "asset_type": "laptop",
+            "assigned_to": 69
+          },
+          {
+            "asset_id": 2,
+            "asset_tag": "ASSET-00002",
+            "asset_type": "desktop",
+            "assigned_to": 193
+          },
+          {
+            "asset_id": 3,
+            "asset_tag": "ASSET-00003",
+            "asset_type": "laptop",
+            "assigned_to": 181
+          }
+        ],
+        "fingerprint": "1e66d80b8972ac0ea041a825373bb291"
+      },
+      "tickets": {
+        "rows": 50000,
+        "samples": [
+          {
+            "status": "resolved",
+            "subject": "Access to \"shared\" folder denied #1",
+            "asset_id": null,
+            "priority": "medium",
+            "ticket_id": 1,
+            "created_at": "2026-04-15T04:45:00+00:00",
+            "assigned_to": 9,
+            "description": "Synthetic support request 1. Access to \"shared\" folder denied.",
+            "reported_by": 141
+          },
+          {
+            "status": "open",
+            "subject": "Application freezes, then closes #2",
+            "asset_id": 188,
+            "priority": "medium",
+            "ticket_id": 2,
+            "created_at": "2026-10-03T09:59:00+00:00",
+            "assigned_to": 4,
+            "description": "Synthetic support request 2. Application freezes, then closes.",
+            "reported_by": 195
+          },
+          {
+            "status": "in_progress",
+            "subject": "Device runs slowly #3",
+            "asset_id": 423,
+            "priority": "medium",
+            "ticket_id": 3,
+            "created_at": "2026-08-14T14:46:00+00:00",
+            "assigned_to": 5,
+            "description": "Synthetic support request 3. Device runs slowly.",
+            "reported_by": 152
+          }
+        ],
+        "fingerprint": "a0c52dbe81b1921b40d23fcc7e450ed2"
+      },
+      "ticket_updates": {
+        "rows": 100272,
+        "samples": [
+          {
+            "author_id": 9,
+            "ticket_id": 1,
+            "update_id": 1,
+            "created_at": "2026-04-15T05:45:00+00:00",
+            "update_text": "Synthetic update 1 for ticket 1"
+          },
+          {
+            "author_id": 9,
+            "ticket_id": 1,
+            "update_id": 2,
+            "created_at": "2026-04-15T06:45:00+00:00",
+            "update_text": "Synthetic update 2 for ticket 1"
+          },
+          {
+            "author_id": 4,
+            "ticket_id": 2,
+            "update_id": 3,
+            "created_at": "2026-10-03T10:59:00+00:00",
+            "update_text": "Synthetic update 1 for ticket 2"
+          }
+        ],
+        "fingerprint": "214caaded7b2ab50c32a8a263cb7c3ae"
+      }
+    },
+    "indexes": [
+      "CREATE UNIQUE INDEX assets_asset_tag_key ON public.assets USING btree (asset_tag)",
+      "CREATE UNIQUE INDEX assets_pkey ON public.assets USING btree (asset_id)",
+      "CREATE UNIQUE INDEX staff_email_key ON public.staff USING btree (email)",
+      "CREATE UNIQUE INDEX staff_pkey ON public.staff USING btree (staff_id)",
+      "CREATE INDEX idx_updates_ticket_created ON public.ticket_updates USING btree (ticket_id, created_at, update_id)",
+      "CREATE UNIQUE INDEX ticket_updates_pkey ON public.ticket_updates USING btree (update_id)",
+      "CREATE INDEX idx_tickets_active_agent_created ON public.tickets USING btree (assigned_to, created_at DESC, ticket_id DESC) WHERE (status = ANY (ARRAY['open'::text, 'in_progress'::text]))",
+      "CREATE INDEX idx_tickets_reporter_created ON public.tickets USING btree (reported_by, created_at DESC, ticket_id DESC)",
+      "CREATE UNIQUE INDEX tickets_pkey ON public.tickets USING btree (ticket_id)"
+    ],
+    "sequences": {
+      "staff_staff_id_seq": 200,
+      "assets_asset_id_seq": 1000,
+      "tickets_ticket_id_seq": 50003,
+      "ticket_updates_update_id_seq": 100275
+    },
+    "superuser": true,
+    "privileges": [
+      {
+        "acl": [
+          "asset_reader=r/security_owner",
+          "helpdesk_agent=r/security_owner",
+          "security_owner=arwdDxtm/security_owner"
+        ],
+        "name": "assets",
+        "owner": "security_owner",
+        "schema": "public",
+        "columns": {
+          "asset_id": null,
+          "asset_tag": null,
+          "asset_type": null,
+          "assigned_to": null
+        }
+      },
+      {
+        "acl": [
+          "security_owner=rwU/security_owner"
+        ],
+        "name": "assets_asset_id_seq",
+        "owner": "security_owner",
+        "schema": "public",
+        "columns": {
+          "log_cnt": null,
+          "is_called": null,
+          "last_value": null
+        }
+      },
+      {
+        "acl": [
+          "=r/security_owner",
+          "security_owner=arwdDxtm/security_owner"
+        ],
+        "name": "pg_stat_statements",
+        "owner": "security_owner",
+        "schema": "public",
+        "columns": {
+          "dbid": null,
+          "rows": null,
+          "calls": null,
+          "plans": null,
+          "query": null,
+          "userid": null,
+          "queryid": null,
+          "wal_fpi": null,
+          "toplevel": null,
+          "wal_bytes": null,
+          "stats_since": null,
+          "wal_records": null,
+          "jit_functions": null,
+          "max_exec_time": null,
+          "max_plan_time": null,
+          "min_exec_time": null,
+          "min_plan_time": null,
+          "local_blks_hit": null,
+          "mean_exec_time": null,
+          "mean_plan_time": null,
+          "temp_blks_read": null,
+          "jit_deform_time": null,
+          "local_blks_read": null,
+          "shared_blks_hit": null,
+          "total_exec_time": null,
+          "total_plan_time": null,
+          "jit_deform_count": null,
+          "shared_blks_read": null,
+          "stddev_exec_time": null,
+          "stddev_plan_time": null,
+          "jit_emission_time": null,
+          "jit_inlining_time": null,
+          "temp_blks_written": null,
+          "jit_emission_count": null,
+          "jit_inlining_count": null,
+          "local_blks_dirtied": null,
+          "local_blks_written": null,
+          "minmax_stats_since": null,
+          "temp_blk_read_time": null,
+          "jit_generation_time": null,
+          "local_blk_read_time": null,
+          "shared_blks_dirtied": null,
+          "shared_blks_written": null,
+          "temp_blk_write_time": null,
+          "local_blk_write_time": null,
+          "shared_blk_read_time": null,
+          "jit_optimization_time": null,
+          "shared_blk_write_time": null,
+          "jit_optimization_count": null
+        }
+      },
+      {
+        "acl": [
+          "=r/security_owner",
+          "security_owner=arwdDxtm/security_owner"
+        ],
+        "name": "pg_stat_statements_info",
+        "owner": "security_owner",
+        "schema": "public",
+        "columns": {
+          "dealloc": null,
+          "stats_reset": null
+        }
+      },
+      {
+        "acl": [
+          "security_owner=arwdDxtm/security_owner"
+        ],
+        "name": "staff",
+        "owner": "security_owner",
+        "schema": "public",
+        "columns": {
+          "email": null,
+          "staff_id": [
+            "helpdesk_agent=r/security_owner"
+          ],
+          "full_name": [
+            "helpdesk_agent=r/security_owner"
+          ],
+          "department": [
+            "helpdesk_agent=r/security_owner"
+          ]
+        }
+      },
+      {
+        "acl": [
+          "security_owner=rwU/security_owner"
+        ],
+        "name": "staff_staff_id_seq",
+        "owner": "security_owner",
+        "schema": "public",
+        "columns": {
+          "log_cnt": null,
+          "is_called": null,
+          "last_value": null
+        }
+      },
+      {
+        "acl": [
+          "helpdesk_agent=r/security_owner",
+          "security_owner=arwdDxtm/security_owner"
+        ],
+        "name": "ticket_updates",
+        "owner": "security_owner",
+        "schema": "public",
+        "columns": {
+          "author_id": [
+            "helpdesk_agent=a/security_owner"
+          ],
+          "ticket_id": [
+            "helpdesk_agent=a/security_owner"
+          ],
+          "update_id": null,
+          "created_at": null,
+          "update_text": [
+            "helpdesk_agent=a/security_owner"
+          ]
+        }
+      },
+      {
+        "acl": [
+          "helpdesk_agent=U/security_owner",
+          "security_owner=rwU/security_owner"
+        ],
+        "name": "ticket_updates_update_id_seq",
+        "owner": "security_owner",
+        "schema": "public",
+        "columns": {
+          "log_cnt": null,
+          "is_called": null,
+          "last_value": null
+        }
+      },
+      {
+        "acl": [
+          "helpdesk_agent=r/security_owner",
+          "security_owner=arwdDxtm/security_owner"
+        ],
+        "name": "tickets",
+        "owner": "security_owner",
+        "schema": "public",
+        "columns": {
+          "status": [
+            "helpdesk_agent=aw/security_owner"
+          ],
+          "subject": [
+            "helpdesk_agent=a/security_owner"
+          ],
+          "asset_id": [
+            "helpdesk_agent=a/security_owner"
+          ],
+          "priority": [
+            "helpdesk_agent=aw/security_owner"
+          ],
+          "ticket_id": null,
+          "created_at": null,
+          "assigned_to": [
+            "helpdesk_agent=aw/security_owner"
+          ],
+          "description": [
+            "helpdesk_agent=a/security_owner"
+          ],
+          "reported_by": [
+            "helpdesk_agent=a/security_owner"
+          ]
+        }
+      },
+      {
+        "acl": [
+          "helpdesk_agent=U/security_owner",
+          "security_owner=rwU/security_owner"
+        ],
+        "name": "tickets_ticket_id_seq",
+        "owner": "security_owner",
+        "schema": "public",
+        "columns": {
+          "log_cnt": null,
+          "is_called": null,
+          "last_value": null
+        }
+      },
+      {
+        "acl": [
+          "report_reader=r/security_owner",
+          "security_owner=arwdDxtm/security_owner"
+        ],
+        "name": "asset_inventory",
+        "owner": "security_owner",
+        "schema": "reporting",
+        "columns": {
+          "asset_type": null,
+          "asset_count": null,
+          "assigned_count": null,
+          "unassigned_count": null
+        }
+      },
+      {
+        "acl": [
+          "report_reader=r/security_owner",
+          "security_owner=arwdDxtm/security_owner"
+        ],
+        "name": "ticket_summary",
+        "owner": "security_owner",
+        "schema": "reporting",
+        "columns": {
+          "status": null,
+          "priority": null,
+          "ticket_count": null
+        }
+      }
+    ],
+    "server_major": 17,
+    "ticket_summary": [
+      {
+        "status": "closed",
+        "priority": "high",
+        "ticket_count": 3397
+      },
+      {
+        "status": "closed",
+        "priority": "low",
+        "ticket_count": 7847
+      },
+      {
+        "status": "closed",
+        "priority": "medium",
+        "ticket_count": 10085
+      },
+      {
+        "status": "closed",
+        "priority": "urgent",
+        "ticket_count": 1100
+      },
+      {
+        "status": "in_progress",
+        "priority": "high",
+        "ticket_count": 1467
+      },
+      {
+        "status": "in_progress",
+        "priority": "low",
+        "ticket_count": 3511
+      },
+      {
+        "status": "in_progress",
+        "priority": "medium",
+        "ticket_count": 4440
+      },
+      {
+        "status": "in_progress",
+        "priority": "urgent",
+        "ticket_count": 514
+      },
+      {
+        "status": "open",
+        "priority": "high",
+        "ticket_count": 1127
+      },
+      {
+        "status": "open",
+        "priority": "low",
+        "ticket_count": 2548
+      },
+      {
+        "status": "open",
+        "priority": "medium",
+        "ticket_count": 3478
+      },
+      {
+        "status": "open",
+        "priority": "urgent",
+        "ticket_count": 414
+      },
+      {
+        "status": "resolved",
+        "priority": "high",
+        "ticket_count": 1449
+      },
+      {
+        "status": "resolved",
+        "priority": "low",
+        "ticket_count": 3481
+      },
+      {
+        "status": "resolved",
+        "priority": "medium",
+        "ticket_count": 4636
+      },
+      {
+        "status": "resolved",
+        "priority": "urgent",
+        "ticket_count": 506
+      }
+    ],
+    "asset_inventory": [
+      {
+        "asset_type": "desktop",
+        "asset_count": 250,
+        "assigned_count": 224,
+        "unassigned_count": 26
+      },
+      {
+        "asset_type": "laptop",
+        "asset_count": 685,
+        "assigned_count": 618,
+        "unassigned_count": 67
+      },
+      {
+        "asset_type": "printer",
+        "asset_count": 65,
+        "assigned_count": 59,
+        "unassigned_count": 6
+      }
+    ]
+  },
+  "checks_passed": [
+    "schema_smoke.sql",
+    "index_smoke.sql",
+    "permissions_smoke.sql"
+  ],
+  "finished_at_utc": "2026-11-23T00:10:19.257499+00:00"
+}

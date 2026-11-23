@@ -4,11 +4,15 @@ Set HELPDESK_TEST_DATABASE and standard PGHOST/PGPORT/PGUSER/PGPASSFILE.
 Use a superuser test login; permission checks SET ROLE to each application group.
 The schema smoke test advances identity sequences even though rows roll back.
 """
+import json
 import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
+import tempfile
 import unittest
+import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 DATABASE = os.environ.get('HELPDESK_TEST_DATABASE')
@@ -28,6 +32,28 @@ class DatabaseTests(unittest.TestCase):
 
     def test_permissions(self):
         self.run_sql('tests/permissions_smoke.sql')
+
+    def test_recovery(self):
+        psql = shutil.which(os.environ.get('HELPDESK_TEST_PSQL', 'psql'))
+        self.assertIsNotNone(psql, 'Configure HELPDESK_TEST_PSQL or PATH')
+        target = 'helpdesk_restore_test_' + uuid.uuid4().hex
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / 'recovery.json'
+            command = [sys.executable, str(ROOT / 'scripts/backup_restore.py'),
+                       '--dbname', DATABASE, '--restore-db', target,
+                       '--pg-bin', str(Path(psql).parent),
+                       '--backup', str(Path(directory) / 'database.dump'), '--output', str(report)]
+            try:
+                result = subprocess.run(command, capture_output=True, text=True, timeout=300)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertTrue(json.loads(report.read_text())['success'])
+            finally:
+                if report.exists() and json.loads(report.read_text()).get('restore_database_created'):
+                    cleanup = subprocess.run(
+                        [str(Path(psql).with_name('dropdb' + Path(psql).suffix)), '-w', target],
+                        capture_output=True, text=True, timeout=60,
+                    )
+                    self.assertEqual(cleanup.returncode, 0, cleanup.stderr)
 
     def test_data(self):
         self.run_sql('tests/data_smoke.sql')
